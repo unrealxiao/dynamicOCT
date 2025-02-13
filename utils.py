@@ -419,7 +419,7 @@ def scale_clip(data, vmin, vmax, scale=1.0):
     """
     return np.clip((data-vmin)*(scale/(vmax-vmin)), 0, scale)
 
-def generate_RgbImage(doct, dbInt, doctRange, octRange):
+def generate_RgbImage(doct, dbInt, doctRange, octRange, scale):
     """
     
 
@@ -433,6 +433,8 @@ def generate_RgbImage(doct, dbInt, doctRange, octRange):
         dynamic range of aLIV, which is used as hue of pseudo-color image
     octRange : 1D tuple (min, max)
         dynamic range of dB-scaled OCT intensity, which is used as brightness of pseudo-color image
+    scale : scalar value
+        maximum value for the numpy clip function
 
     Returns
     -------
@@ -440,7 +442,7 @@ def generate_RgbImage(doct, dbInt, doctRange, octRange):
         pseudo-color image
 
     """
-    hsvImage = np.stack([scale_clip(doct, *doctRange, 0.33), np.ones_like(doct),
+    hsvImage = np.stack([scale_clip(doct, *doctRange, scale), np.ones_like(doct),
                        scale_clip(dbInt, *octRange)], axis=-1)
     rgbImage = hsv_to_rgb(hsvImage)
     return rgbImage
