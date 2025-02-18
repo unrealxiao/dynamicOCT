@@ -18,7 +18,7 @@ def save_dcm_pickle(data_path):
     dcm_list = natsorted(nonorganize_list)
     dcm_name = dcm_list[0]
     ds = dcmread(os.path.join(data_path, scan_name, dcm_name))
-    arr = ds.pixel_array[0:200, :]
+    arr = ds.pixel_array
     arr_shape = arr.shape
     for s_name in scan_list:
         volume = np.zeros((len(dcm_list), arr_shape[0], arr_shape[1]))
@@ -27,7 +27,7 @@ def save_dcm_pickle(data_path):
         for i in range(len(dcm_sub_list)):
             d_name = dcm_sub_list[i]
             image = dcmread(os.path.join(data_path, s_name, d_name))
-            array = image.pixel_array[0:200, :]
+            array = image.pixel_array
             volume[i, :, :] = array
         with open(os.path.join(data_path, s_name, f'{s_name}.pickle'), 'wb') as handle:
             pickle.dump(volume, handle, protocol=pickle.HIGHEST_PROTOCOL)
