@@ -10,6 +10,7 @@ from scipy.optimize import curve_fit
 from pydicom import dcmread
 import re
 from matplotlib.colors import hsv_to_rgb
+from tqdm import tqdm
 # import cupy as cp
 def save_dcm_pickle(data_path):
     scan_list = natsorted(os.listdir(data_path))
@@ -43,7 +44,7 @@ def min_max(data1):
         data1 = (data1-np.min(data1))/(maxx-np.min(data1))
         return data1
 
-def load_nested_data_pickle(path, num):
+def load_nested_data_pickle(path, num, ytop=None, ybot=None):
     pic_paths = []
     for scan_num in natsorted(os.listdir(path)):
         if scan_num.startswith('scan'):
@@ -51,12 +52,22 @@ def load_nested_data_pickle(path, num):
     pic_paths = pic_paths[0:num]
     with open(f'{pic_paths[0]}', 'rb') as handle:
         b = pickle.load(handle)
-    data = np.zeros((len(pic_paths),b.shape[0],b.shape[1],b.shape[2]))
+    if [ytop, ybot] == [None, None]:
+        data = np.zeros((len(pic_paths),b.shape[0],b.shape[1],b.shape[2]))
+    else:
+        data = np.zeros((len(pic_paths),b.shape[0],ybot - ytop,b.shape[2]))
 
-    for idx,img_path in enumerate(pic_paths):
-        with open(img_path, 'rb') as handle:
-            temp = pickle.load(handle)
-        data[idx]=(temp.copy())
+    if [ytop, ybot] == [None, None]:
+        for idx,img_path in tqdm(enumerate(pic_paths)):
+            with open(img_path, 'rb') as handle:
+                temp = pickle.load(handle)
+            data[idx]=(temp.copy())
+    else:
+        for idx,img_path in tqdm(enumerate(pic_paths)):
+            with open(img_path, 'rb') as handle:
+                temp = pickle.load(handle)
+            realtemp = temp[:, ytop:ybot, :]
+            data[idx]=(realtemp.copy())
     # data = data.astype(np.float32)
     return data
 
