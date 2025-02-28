@@ -11,30 +11,8 @@ from pydicom import dcmread
 import re
 from matplotlib.colors import hsv_to_rgb
 from tqdm import tqdm
+import h5py
 # import cupy as cp
-def save_dcm_pickle(data_path):
-    scan_list = natsorted(os.listdir(data_path))
-    scan_name = scan_list[0]
-    nonorganize_list = [f for f in os.listdir(os.path.join(data_path, scan_name)) if re.match(r'.*\.dcm', f)]
-    dcm_list = natsorted(nonorganize_list)
-    dcm_name = dcm_list[0]
-    ds = dcmread(os.path.join(data_path, scan_name, dcm_name))
-    arr = ds.pixel_array
-    arr_shape = arr.shape
-    for s_name in scan_list:
-        volume = np.zeros((len(dcm_list), arr_shape[0], arr_shape[1]))
-        non_sub_list = [f for f in os.listdir(os.path.join(data_path, s_name)) if re.match(r'.*\.dcm', f)]
-        dcm_sub_list = natsorted(non_sub_list)
-        for i in range(len(dcm_sub_list)):
-            d_name = dcm_sub_list[i]
-            image = dcmread(os.path.join(data_path, s_name, d_name))
-            array = image.pixel_array
-            volume[i, :, :] = array
-        with open(os.path.join(data_path, s_name, f'{s_name}.pickle'), 'wb') as handle:
-            pickle.dump(volume, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-
 
 def min_max(data1):
     maxx = np.max(data1)
@@ -66,6 +44,40 @@ def load_nested_data_pickle(path, num, ytop=None, ybot=None):
         for idx,img_path in tqdm(enumerate(pic_paths)):
             with open(img_path, 'rb') as handle:
                 temp = pickle.load(handle)
+            realtemp = temp[:, ytop:ybot, :]
+            data[idx]=(realtemp.copy())
+    # data = data.astype(np.float32)
+    return data
+
+def load_nested_data_h5(path, num, ytop=None, ybot=None):
+    pic_paths = []
+    for scan_num in natsorted(os.listdir(path)):
+        if scan_num.startswith('scan'):
+            pic_paths.append(os.path.join(path,scan_num,f'{scan_num}.h5'))
+    pic_paths = pic_paths[0:num]
+    # with open(f'{pic_paths[0]}', 'rb') as handle:
+    #     b = pickle.load(handle)
+    with h5py.File(pic_paths[0], "r") as h5f:
+        b = np.array(h5f["volume"])
+        h5f.close()
+    if [ytop, ybot] == [None, None]:
+        data = np.zeros((len(pic_paths),b.shape[0],b.shape[1],b.shape[2]))
+    else:
+        data = np.zeros((len(pic_paths),b.shape[0],ybot - ytop,b.shape[2]))
+
+    if [ytop, ybot] == [None, None]:
+        for idx,img_path in tqdm(enumerate(pic_paths)):
+            with h5py.File(img_path, "r") as h5f:
+                temp = np.array(h5f["volume"])
+                h5f.close()
+            data[idx]=(temp.copy())
+    else:
+        for idx,img_path in tqdm(enumerate(pic_paths)):
+            # with open(img_path, 'rb') as handle:
+            #     temp = pickle.load(handle)
+            with h5py.File(img_path, "r") as h5f:
+                temp = np.array(h5f["volume"])
+                h5f.close()
             realtemp = temp[:, ytop:ybot, :]
             data[idx]=(realtemp.copy())
     # data = data.astype(np.float32)
