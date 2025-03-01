@@ -22,33 +22,6 @@ def min_max(data1):
         data1 = (data1-np.min(data1))/(maxx-np.min(data1))
         return data1
 
-def load_nested_data_pickle(path, num, ytop=None, ybot=None):
-    pic_paths = []
-    for scan_num in natsorted(os.listdir(path)):
-        if scan_num.startswith('scan'):
-            pic_paths.append(os.path.join(path,scan_num,f'{scan_num}.pickle'))
-    pic_paths = pic_paths[0:num]
-    with open(f'{pic_paths[0]}', 'rb') as handle:
-        b = pickle.load(handle)
-    if [ytop, ybot] == [None, None]:
-        data = np.zeros((len(pic_paths),b.shape[0],b.shape[1],b.shape[2]))
-    else:
-        data = np.zeros((len(pic_paths),b.shape[0],ybot - ytop,b.shape[2]))
-
-    if [ytop, ybot] == [None, None]:
-        for idx,img_path in tqdm(enumerate(pic_paths)):
-            with open(img_path, 'rb') as handle:
-                temp = pickle.load(handle)
-            data[idx]=(temp.copy())
-    else:
-        for idx,img_path in tqdm(enumerate(pic_paths)):
-            with open(img_path, 'rb') as handle:
-                temp = pickle.load(handle)
-            realtemp = temp[:, ytop:ybot, :]
-            data[idx]=(realtemp.copy())
-    # data = data.astype(np.float32)
-    return data
-
 def load_nested_data_h5(path, num, ytop=None, ybot=None):
     pic_paths = []
     for scan_num in natsorted(os.listdir(path)):
@@ -66,13 +39,13 @@ def load_nested_data_h5(path, num, ytop=None, ybot=None):
         data = np.zeros((len(pic_paths),b.shape[0],ybot - ytop,b.shape[2]))
 
     if [ytop, ybot] == [None, None]:
-        for idx,img_path in tqdm(enumerate(pic_paths)):
+        for idx,img_path in enumerate(tqdm(pic_paths)):
             with h5py.File(img_path, "r") as h5f:
                 temp = np.array(h5f["volume"])
                 h5f.close()
             data[idx]=(temp.copy())
     else:
-        for idx,img_path in tqdm(enumerate(pic_paths)):
+        for idx,img_path in enumerate(tqdm(pic_paths)):
             # with open(img_path, 'rb') as handle:
             #     temp = pickle.load(handle)
             with h5py.File(img_path, "r") as h5f:
@@ -128,16 +101,6 @@ def load_data_png(path):
     imgs_from_folder = imgs_from_folder.astype(np.float32)
     return imgs_from_folder
 
-def slope_mask(slope_arr):
-    mask1 = np.zeros_like(slope_arr[0],dtype=np.float32)
-    std_mask = np.apply_along_axis(func1d=np.std,arr=slope_arr,axis=0)
-    slope_arr = np.apply_along_axis(func1d=min_max,arr=slope_arr,axis=0)
-    for x in range(slope_arr.shape[1]):
-        for y in range(slope_arr.shape[2]):
-            data1 = slope_arr[:,x,y]
-            slope1 = np.polyfit(range(len(data1)), data1, 1)[0]
-            mask1[x, y] = -np.abs(slope1)
-    return mask1*(5*std_mask)
 
 def ymotion(data):
     # n = data.shape[0]
@@ -211,6 +174,41 @@ def makeSparseDataFromRasterRepeat(octFrames, lpg, fpl, floc):
 
     sparseSequence = np.array(octFrames[np.array(frameIndexes).astype(int) , :, :])
     return(sparseSequence, timePoints, frameIndexes)
+
+def makeSparseDatadirect(mainpath, lpg, fpl, floc, dshape, ytop=None, ybot=None):
+    theGrp = int(floc/lpg) # The group containing the location (loc)
+    fIdxInG = floc - theGrp*lpg # The frame index in the group
+    first_scan = theGrp*fpl + 1#first scan number that this group belong
+    last_scan = (theGrp + 1)*fpl#last scan number that this group belong
+    timePoints = np.linspace(0,fpl-1, fpl, dtype = int)*lpg
+    frame_num = 0#
+    sparseSequence = np.zeros(dshape)
+    for scanIndex in tqdm(range(first_scan, last_scan+1, 1)):
+        datapath = os.path.join(mainpath,f'scan{scanIndex}',f'scan{scanIndex}.h5')#all scan that contain this location of interests
+        if [ytop, ybot] == [None, None]:
+            with h5py.File(datapath, "r") as h5f:
+                # temp = np.array(h5f["volume"])
+                # temp_slice = temp[fIdxInG, :, :]
+                h5_data = h5f["volume"]
+                h5_slice = h5_data[fIdxInG]
+                temp_slice = np.array(h5_slice)
+                h5f.close()
+            sparseSequence[frame_num, :, :]=(temp_slice.copy())
+        else:
+            # with open(img_path, 'rb') as handle:
+            #     temp = pickle.load(handle)
+            with h5py.File(datapath, "r") as h5f:
+                # temp = np.array(h5f["volume"])
+                # temp_slice = temp[fIdxInG, :, :]
+                h5_data = h5f["volume"]
+                h5_slice = h5_data[fIdxInG]
+                temp_slice = np.array(h5_slice)
+                h5f.close()
+            realtemp = temp_slice[ytop:ybot, :]
+            sparseSequence[frame_num, :, :]=(realtemp.copy())
+        frame_num = frame_num + 1
+    return(sparseSequence, timePoints)
+
 
 def seekDataForMaxTimeWindow(timePoints, mtw):
     """
