@@ -1,13 +1,11 @@
 import numpy as np
 import os
-import pickle
-#from scipy import ndimage as snp
+from scipy import ndimage
 #from statsmodels.tsa.stattools import acf
 from natsort import natsorted
 import cv2
 from skimage.transform import warp, AffineTransform
 from scipy.optimize import curve_fit
-from pydicom import dcmread
 import re
 from matplotlib.colors import hsv_to_rgb
 from tqdm import tqdm
@@ -22,7 +20,7 @@ def min_max(data1):
         data1 = (data1-np.min(data1))/(maxx-np.min(data1))
         return data1
 
-def load_nested_data_h5(path, num, ytop=None, ybot=None):
+def load_nested_data_h5(path, num, ytop=None, ybot=None, median_filter = 2):
     pic_paths = []
     for scan_num in natsorted(os.listdir(path)):
         if scan_num.startswith('scan'):
@@ -43,16 +41,17 @@ def load_nested_data_h5(path, num, ytop=None, ybot=None):
             with h5py.File(img_path, "r") as h5f:
                 temp = np.array(h5f["volume"])
                 h5f.close()
-            data[idx]=(temp.copy())
+            data[idx]=ndimage.median_filter(temp.copy(), size=median_filter)
     else:
         for idx,img_path in enumerate(tqdm(pic_paths)):
             # with open(img_path, 'rb') as handle:
             #     temp = pickle.load(handle)
             with h5py.File(img_path, "r") as h5f:
-                temp = np.array(h5f["volume"])
+                volume = h5f["volume"]
+                temp = volume[:, ytop:ybot, :]
                 h5f.close()
-            realtemp = temp[:, ytop:ybot, :]
-            data[idx]=(realtemp.copy())
+            realtemp = np.array(temp)
+            data[idx]=ndimage.median_filter(realtemp.copy(), size=median_filter)
     # data = data.astype(np.float32)
     return data
 
@@ -183,14 +182,14 @@ def makeSparseDatadirect(mainpath, lpg, fpl, floc, dshape, ytop=None, ybot=None)
     timePoints = np.linspace(0,fpl-1, fpl, dtype = int)*lpg
     frame_num = 0#
     sparseSequence = np.zeros(dshape)
-    for scanIndex in tqdm(range(first_scan, last_scan+1, 1)):
+    for scanIndex in range(first_scan, last_scan+1, 1):
         datapath = os.path.join(mainpath,f'scan{scanIndex}',f'scan{scanIndex}.h5')#all scan that contain this location of interests
         if [ytop, ybot] == [None, None]:
             with h5py.File(datapath, "r") as h5f:
                 # temp = np.array(h5f["volume"])
                 # temp_slice = temp[fIdxInG, :, :]
                 h5_data = h5f["volume"]
-                h5_slice = h5_data[fIdxInG]
+                h5_slice = h5_data[fIdxInG, :, :]
                 temp_slice = np.array(h5_slice)
                 h5f.close()
             sparseSequence[frame_num, :, :]=(temp_slice.copy())
@@ -201,7 +200,7 @@ def makeSparseDatadirect(mainpath, lpg, fpl, floc, dshape, ytop=None, ybot=None)
                 # temp = np.array(h5f["volume"])
                 # temp_slice = temp[fIdxInG, :, :]
                 h5_data = h5f["volume"]
-                h5_slice = h5_data[fIdxInG]
+                h5_slice = h5_data[fIdxInG, :, :]
                 temp_slice = np.array(h5_slice)
                 h5f.close()
             realtemp = temp_slice[ytop:ybot, :]
