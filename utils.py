@@ -372,7 +372,7 @@ def vlivCPUFitExp(VLIV, possibleMtw, frameSeparationTime, alivInitial, swiftInit
     width = VLIV.shape[2]
     mag = np.empty((height, width))
     tau = np.empty((height, width))
-
+    max_acquisition_time = np.max(possibleMtw) * frameSeparationTime
     # def saturationFunction(x, a, b):
     #     return(np.absolute(a)*(1-(np.exp(-x/b))))
     
@@ -407,13 +407,22 @@ def vlivCPUFitExp(VLIV, possibleMtw, frameSeparationTime, alivInitial, swiftInit
                     mag[depth, lateral] = np.nan
                     tau[depth, lateral] = np.nan
                     
-                mag[depth, lateral] = popt[0]
-                tau[depth, lateral] = popt[1]
-
+                # mag[depth, lateral] = popt[0]
+                # tau[depth, lateral] = popt[1]
+                fit_LIV = LIV_fun(t, *popt)
+                ##test if the LIV curve is type B and A
+                if popt[1] >= 2 * max_acquisition_time:
+                    mag[depth, lateral] = np.nan
+                    tau[depth, lateral] = np.nan
+                elif np.mean(np.square(LivLine2)) <= 4 * np.mean(np.square(LivLine2 - fit_LIV)):
+                    mag[depth, lateral] = np.nan
+                    tau[depth, lateral] = np.nan
+                else:
+                    mag[depth, lateral] = popt[0]
+                    tau[depth, lateral] = popt[1]              
             else:
                 mag[depth, lateral] = np.nan
                 tau[depth, lateral] = np.nan
-    
     return(mag, tau)
 
 def scale_clip(data, vmin, vmax, scale=1.0):

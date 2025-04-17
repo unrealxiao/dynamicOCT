@@ -86,9 +86,9 @@ def parallel_convert(variables):
 
 if __name__ == "__main__":
 
-    source_path = "I:/IR_card_glass_side_3_13_2025"
+    source_path = r"G:\POCM_System\Human_Imaging\Hadiya_1.5_3mm_4_8_2025"
     data_name = os.path.basename(source_path)#name of the main image set
-    target_path = "D:/globus slate shared data Tankam Lab"
+    target_path = r"D:\globus slate shared data Tankam Lab"
     scan_list = [f for f in natsorted(os.listdir(source_path)) if re.match('scan[0-9]+', f)]
     scan_name = scan_list[0]
     nonorganize_list = [f for f in os.listdir(os.path.join(source_path, scan_name)) if re.match(r'^image_[0-9]+\.asc$', f)]
