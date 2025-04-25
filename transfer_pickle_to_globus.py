@@ -60,7 +60,7 @@ import cv2
 
 
 def parallel_convert(variables):
-    s_name, asc_list, arr_shape, source_path, target_path, data_name = variables
+    s_name, asc_list, arr_shape, source_path, target_path, data_name, batch_folder = variables
     volume = np.zeros((len(asc_list), arr_shape[0], arr_shape[1]))
     non_sub_list = [f for f in os.listdir(os.path.join(source_path, s_name)) if re.match(r'^image_[0-9]+\.asc$', f)]
     asc_sub_list = natsorted(non_sub_list)
@@ -71,7 +71,7 @@ def parallel_convert(variables):
         calibrate = new_img.astype(np.uint16)
         volume[i, :, :] = calibrate
     
-    target_folder = os.path.join(target_path, data_name, s_name)#the folder where picke file will be saved
+    target_folder = os.path.join(target_path, data_name, batch_folder, s_name)#the folder where picke file will be saved
     pathlib.Path(target_folder).mkdir(parents=True, exist_ok=True)#create the folder if it was not created
     target_addressname = os.path.join(target_folder, f'{s_name}.h5')
     with h5py.File(target_addressname, 'w') as h5f:
@@ -82,25 +82,29 @@ def parallel_convert(variables):
             compression_opts=5,
             chunks=True
         )
-    print("completed processing ", s_name)
+    print("completed processing ", target_folder)
 
 if __name__ == "__main__":
 
-    source_path = r"G:\POCM_System\Human_Imaging\Hadiya_1.5_3mm_4_8_2025"
+    source_path = r"G:\POCM_System\Human_Imaging\Patrice_4_15_2025_1.50_3mm"
     data_name = os.path.basename(source_path)#name of the main image set
     target_path = r"D:\globus slate shared data Tankam Lab"
-    scan_list = [f for f in natsorted(os.listdir(source_path)) if re.match('scan[0-9]+', f)]
-    scan_name = scan_list[0]
-    nonorganize_list = [f for f in os.listdir(os.path.join(source_path, scan_name)) if re.match(r'^image_[0-9]+\.asc$', f)]
-    asc_name = nonorganize_list[0]
-    image = np.loadtxt(os.path.join(source_path, scan_name, asc_name))
-    new_img = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    calibrate = new_img.astype(np.uint16)
-    arr_shape = calibrate.shape
-    print("start to convert asc to h5")
-
-    with multiprocessing.Pool(processes=4) as pool:
-        tasks = [(name, nonorganize_list, arr_shape, source_path, target_path, data_name) 
-                 for name in scan_list
-                ]
-        pool.map(parallel_convert, tasks)
+    batch_folder_list = [f for f in os.listdir(source_path) if re.match('^batch[0-9]*$', f)]
+    #process dataset batch by batch
+    for batch in batch_folder_list:
+        new_source_path = os.path.join(source_path, batch)#address that contains the sub folder address
+        scan_list = [f for f in natsorted(os.listdir(new_source_path)) if re.match('scan[0-9]+', f)]
+        scan_name = scan_list[0]
+        nonorganize_list = [f for f in os.listdir(os.path.join(new_source_path, scan_name)) if re.match(r'^image_[0-9]+\.asc$', f)]
+        asc_name = nonorganize_list[0]
+        image = np.loadtxt(os.path.join(new_source_path, scan_name, asc_name))
+        new_img = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        calibrate = new_img.astype(np.uint16)
+        arr_shape = calibrate.shape
+        print("start process source adress: ", new_source_path)
+        
+        with multiprocessing.Pool(processes=4) as pool:
+            tasks = [(name, nonorganize_list, arr_shape, new_source_path, target_path, data_name, batch) 
+                    for name in scan_list
+                    ]
+            pool.map(parallel_convert, tasks)
