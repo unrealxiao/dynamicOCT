@@ -35,7 +35,7 @@ import cv2
 
 # if __name__ == "__main__":
 
-#     source_path = "I:/Cells_without_H2o2"
+#     source_path = r"G:\OCT_POCM_data\coopervision\OK1_V2_2023_03_03"
 #     data_name = os.path.basename(source_path)#name of the main image set
 #     target_path = "D:/globus slate shared data Tankam Lab"
 #     scan_list = [f for f in natsorted(os.listdir(source_path)) if re.match('scan[0-9]+', f)]
@@ -49,9 +49,9 @@ import cv2
 #     arr_shape = arr.shape
 #     print("start to convert dicm to pickle")
 
-#     with multiprocessing.Pool(processes=4) as pool:k
+#     with multiprocessing.Pool(processes=4) as pool:
 #         tasks = [(name, dcm_list, arr_shape, source_path, target_path, data_name) 
-#                  for name in scan_list
+#                  for name in scan_list[11:13]
 #                 ]
 #         pool.map(parallel_convert, tasks)
 
@@ -86,10 +86,10 @@ def parallel_convert(variables):
 
 if __name__ == "__main__":
 
-    source_path = r"G:\POCM_System\Human_Imaging\Patrice_4_15_2025_1.50_3mm"
+    source_path = r"G:\POCM_System\Human_Imaging\Patrice_5_2_2025"
     data_name = os.path.basename(source_path)#name of the main image set
     target_path = r"D:\globus slate shared data Tankam Lab"
-    batch_folder_list = [f for f in os.listdir(source_path) if re.match('^batch[0-9]*$', f)]
+    batch_folder_list = [f for f in os.listdir(source_path) if re.match('^batch.*$', f)]
     #process dataset batch by batch
     for batch in batch_folder_list:
         new_source_path = os.path.join(source_path, batch)#address that contains the sub folder address
